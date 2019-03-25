@@ -13,7 +13,7 @@ import scipy.ndimage as sni
 import defaults
 from med_objects.med_volume import MedicalVolume
 from tissues.tissue import Tissue
-from utils import io_utils, img_utils
+from utils import io_utils
 from utils.geometry_utils import circle_fit, cart2pol
 from utils.quant_vals import QuantitativeValues
 
@@ -191,18 +191,19 @@ class FemoralCartilage(Tissue):
 
         unrolled_mask[np.where(unrolled_mask < 1)] = self.BACKGROUND_KEY
 
-        left_side_mask = np.copy(unrolled_mask)[:, 0:np.int(np.around(center_of_mass[1]))]
-        right_side_mask = np.copy(unrolled_mask)[:, np.int(np.around(center_of_mass[1])):]
+        lateral_mask = np.copy(unrolled_mask)[:, 0:np.int(np.around(center_of_mass[1]))]
+        medial_mask = np.copy(unrolled_mask)[:, np.int(np.around(center_of_mass[1])):]
 
-        # take into account scanning direction
         if self.medial_to_lateral:
-            left_side_mask[np.where(left_side_mask < self.BACKGROUND_KEY)] = self.MEDIAL_KEY
-            right_side_mask[np.where(right_side_mask < self.BACKGROUND_KEY)] = self.LATERAL_KEY
+            lateral_mask[np.where(lateral_mask < self.BACKGROUND_KEY)] = self.MEDIAL_KEY
+            medial_mask[np.where(medial_mask < self.BACKGROUND_KEY)] = self.LATERAL_KEY
         else:
-            left_side_mask[np.where(left_side_mask < self.BACKGROUND_KEY)] = self.LATERAL_KEY
-            right_side_mask[np.where(right_side_mask < self.BACKGROUND_KEY)] = self.MEDIAL_KEY
+            lateral_mask[np.where(lateral_mask < self.BACKGROUND_KEY)] = self.LATERAL_KEY
+            medial_mask[np.where(medial_mask < self.BACKGROUND_KEY)] = self.MEDIAL_KEY
 
-        ml_mask = np.concatenate((left_side_mask, right_side_mask), axis=1)
+        ml_mask = np.concatenate((lateral_mask, medial_mask), axis=1)
+
+
 
         # Split map in anterior, central and posterior regions
         anterior_mask = np.copy(unrolled_mask)[0:np.int(center_of_mass[0]), :]
@@ -217,7 +218,6 @@ class FemoralCartilage(Tissue):
 
         assert ml_mask.shape == acp_mask.shape
 
-        # convert backgorund label to NaN
         ml_mask[ml_mask == self.BACKGROUND_KEY] = np.nan
         acp_mask[acp_mask == self.BACKGROUND_KEY] = np.nan
 
@@ -228,7 +228,6 @@ class FemoralCartilage(Tissue):
 
         assert np.allclose(self.regions_mask[..., 0], ml_mask[..., 0], equal_nan=True)
         assert np.allclose(self.regions_mask[..., 1], acp_mask[..., 0], equal_nan=True)
-
 
     def calc_quant_vals(self, quant_map, map_type):
         """
@@ -341,7 +340,7 @@ class FemoralCartilage(Tissue):
 
         super().set_mask(mask_copy)
 
-    def __save_quant_data__(self, dirpath, lim):
+    def __save_quant_data__(self, dirpath):
         """Save quantitative data and 2D visualizations of femoral cartilage
 
         Check which quantitative values (T2, T1rho, etc) are defined for femoral cartilage and analyze these
@@ -392,8 +391,6 @@ class FemoralCartilage(Tissue):
 
                 plt.xlabel(xlabel)
                 plt.ylabel(ylabel)
-                plt.ylim((65, 10))
-                plt.xlim((lim[0], lim[1]))
                 plt.title(title)
                 plt.colorbar()
 
@@ -401,22 +398,3 @@ class FemoralCartilage(Tissue):
 
         if len(dfs) > 0:
             io_utils.save_tables(os.path.join(dirpath, 'data.xlsx'), dfs, q_names)
-
-
-    def save_data(self, save_dirpath, lim):
-        #super().save_data(save_dirpath)
-
-        save_dirpath = self.__save_dirpath__(save_dirpath)
-
-        if self.regions_mask is None:
-            print('femoral cartilage region mask not saved')
-            return
-
-        # Save region map - add by 1 because no key can be 0
-        coronal_region_mask = (self.regions_mask[..., 0] + 1) * 10
-        sagital_region_mask = (self.regions_mask[..., 1] + 1)
-        joined_mask = coronal_region_mask + sagital_region_mask
-        labels = ['medial anterior', 'medial central', 'medial posterior',
-                  'lateral anterior', 'lateral central', 'lateral posterior']
-        plt_dict = {'labels': labels, 'xlabel': 'Slice', 'ylabel': 'Angle (binned)', 'title': 'Unrolled Regions'}
-        img_utils.write_regions(os.path.join(save_dirpath, 'region_map.png'), joined_mask, lim, plt_dict=plt_dict)

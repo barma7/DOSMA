@@ -15,20 +15,20 @@ from scipy.stats import wasserstein_distance, kstest
 
 #=============================== CONFIGURATIONS STEPS ==================================================================
 
-repo_folder = '/bmrNAS/people/barma7/bilateral/dess_study/data/marco_study_copy/rep_07/'
+repo_folder = '/home/PERSONALE/marco.barbieri21/NMR_directory/stanford/few_data_fro_dess_study/rep_07/'
 
 dicom_path_l = repo_folder + '005/LEFT/'
 dicom_path_r = repo_folder + '005/RIGHT/'
 
-joint_save_folder =  repo_folder + 'data/005/manual/'
-left_knee_save_folder = repo_folder + 'data/005/manual/LEFT/'
-right_knee_save_folder = repo_folder + 'data/005/manual/RIGHT/'
+joint_save_folder = repo_folder + 'data/005/automatic/'
+left_knee_save_folder = repo_folder + 'data/005/automatic/LEFT/'
+right_knee_save_folder = repo_folder + 'data/005/automatic/RIGHT/'
 
 t2_filepath_left = repo_folder + 'data/005/LEFT/dess_data/t2.nii.gz'
-mask_filepath_left = repo_folder + 'data/005/LEFT/fc/fc_manual.nii.gz'
+mask_filepath_left = repo_folder + 'data/005/LEFT/fc/fc.nii.gz'
 
 t2_filepath_right = repo_folder + 'data/005/RIGHT/dess_data/t2.nii.gz'
-mask_filepath_right = repo_folder + 'data/005/RIGHT/fc/fc_manual.nii.gz'
+mask_filepath_right = repo_folder + 'data/005/RIGHT/fc/fc.nii.gz'
 
 sub_id = 7
 scan_id = 1
@@ -63,8 +63,12 @@ fc_r.calc_quant_vals(dess_r.t2map, t2_par)
 
 #save data
 
-fc_l.__save_quant_data__(left_knee_save_folder)
-fc_r.__save_quant_data__(right_knee_save_folder)
+
+fc_l.__save_quant_data__(left_knee_save_folder, [20, 85])
+fc_r.__save_quant_data__(right_knee_save_folder, [40, 100])
+
+fc_l.save_data(left_knee_save_folder, [20, 85])
+fc_r.save_data(right_knee_save_folder, [40, 100])
 
 
 # Compute Histogram and KL divergence
@@ -77,13 +81,13 @@ seg_t2_r = seg_t2_r[seg_t2_r>0]
 
 fig = plt.figure()
 ax = fig.add_subplot(111)
-h_l = ax.hist(seg_t2_l.flatten(), 100, range = (0, 100), alpha=1, label='LEFT')
-h_r = ax.hist(seg_t2_r.flatten(), 100, range = (0, 100), alpha=0.7, label='RIGHT')
+h_l = ax.hist(seg_t2_l.flatten(), 100, range = (0, 100), histtype=u'step', alpha=1, lw=2, label='LEFT')
+h_r = ax.hist(seg_t2_r.flatten(), 100, range = (0, 100),histtype=u'step', alpha=1, lw=2, label='RIGHT')
 ax.set_xlabel('T2 (ms)')
 ax.set_ylabel('# COUNTS')
 ax.legend()
 plt.draw()
-plt.savefig(join(joint_save_folder, 'T2_hist.pdf'), format='pdf', dpi=300)
+plt.savefig(join(joint_save_folder, 'T2_hist.png'), format='png', dpi=300)
 
 
 # Compute Jensen-Shannon divergence
